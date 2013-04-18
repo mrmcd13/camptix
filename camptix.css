@@ -37,13 +37,6 @@
 	color: #DD0000;
 }
 
-#tix {
-	padding-top: 20px;
-}
-body.admin-bar #tix {
-	padding-top: 50px;
-}
-
 #tix-attendees ul {
 	list-style: none;
 	margin-left: 0;
