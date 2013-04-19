@@ -69,6 +69,7 @@ class CampTix_Plugin {
 
 		// Load a text domain
 		load_plugin_textdomain( 'camptix', false, dirname( plugin_basename( __FILE__ ) ) . '/languages/' );
+		load_plugin_textdomain( 'camptix_mrmcd', false, dirname( plugin_basename( __FILE__ ) ) . '/languages/' );
 	}
 
 	// The tix_action is a user-facing query var, let's enable it.
@@ -316,7 +317,6 @@ class CampTix_Plugin {
 	function init_email_templates_shortcodes() {
 		// Use the same ones as the notify shortcode
 		add_shortcode( 'first_name', array( $this, 'notify_shortcode_first_name' ) );
-		add_shortcode( 'last_name', array( $this, 'notify_shortcode_last_name' ) );
 		add_shortcode( 'email', array( $this, 'notify_shortcode_email' ) );
 
 		add_shortcode( 'ticket_url', array( $this, 'email_template_shortcode_ticket_url' ) );
@@ -347,7 +347,7 @@ class CampTix_Plugin {
 	 */
 	function init_notify_shortcodes() {
 		add_shortcode( 'first_name', array( $this, 'notify_shortcode_first_name' ) );
-		add_shortcode( 'last_name', array( $this, 'notify_shortcode_last_name' ) );
+		
 		add_shortcode( 'email', array( $this, 'notify_shortcode_email' ) );
 		add_shortcode( 'ticket_url', array( $this, 'notify_shortcode_ticket_url' ) );
 	}
@@ -358,14 +358,6 @@ class CampTix_Plugin {
 	function notify_shortcode_first_name( $atts ) {
 		if ( $this->tmp( 'attendee_id' ) )
 			return get_post_meta( $this->tmp( 'attendee_id' ), 'tix_first_name', true );
-	}
-
-	/**
-	 * Notify shortcode: returns the attendee last name.
-	 */
-	function notify_shortcode_last_name( $atts ) {
-		if ( $this->tmp( 'attendee_id' ) )
-			return get_post_meta( $this->tmp( 'attendee_id' ), 'tix_last_name', true );
 	}
 
 	/**
@@ -2457,8 +2449,7 @@ class CampTix_Plugin {
 			$columns = array(
 				'id' => __( 'Attendee ID', 'camptix' ),
 				'ticket' => __( 'Ticket Type', 'camptix' ),
-				'first_name' => __( 'First Name', 'camptix' ),
-				'last_name' => __( 'Last Name', 'camptix' ),
+				'first_name' => __( 'Nick', 'camptix_mrmcd' ),
 				'email' => __( 'E-mail Address', 'camptix' ),
 				'date' => __( 'Purchase date', 'camptix' ),
 				'status' => __( 'Status', 'camptix' ),
@@ -2503,8 +2494,7 @@ class CampTix_Plugin {
 					$line = array(
 						'id' => $attendee_id,
 						'ticket' => $this->get_ticket_title( intval( get_post_meta( $attendee_id, 'tix_ticket_id', true ) ) ),
-						'first_name' => get_post_meta( $attendee_id, 'tix_first_name', true ),
-						'last_name' => get_post_meta( $attendee_id, 'tix_last_name', true ),
+						'nick' => get_post_meta( $attendee_id, 'tix_first_name', true ),
 						'email' => get_post_meta( $attendee_id, 'tix_email', true ),
 						'date' => mysql2date( 'Y-m-d', $attendee->post_date ),
 						'status' => ucfirst( $attendee->post_status ),
@@ -3639,8 +3629,7 @@ class CampTix_Plugin {
 		// General
 		$rows[] = array( __( 'General', 'camptix' ), '' );
 		$rows[] = array( __( 'Status', 'camptix' ), esc_html( ucwords( $post->post_status ) ) );
-		$rows[] = array( __( 'First Name', 'camptix' ), esc_html( get_post_meta( $post->ID, 'tix_first_name', true ) ) );
-		$rows[] = array( __( 'Last Name', 'camptix' ), esc_html( get_post_meta( $post->ID, 'tix_last_name', true ) ) );
+		$rows[] = array( __( 'Nick', 'camptix_mrmcd' ), esc_html( get_post_meta( $post->ID, 'tix_first_name', true ) ) );
 		$rows[] = array( __( 'E-mail', 'camptix' ), esc_html( get_post_meta( $post->ID, 'tix_email', true ) ) );
 		$rows[] = array( __( 'Ticket', 'camptix' ), sprintf( '<a href="%s">%s</a>', get_edit_post_link( $ticket->ID ), $ticket->post_title ) );
 		$rows[] = array( __( 'Edit Token', 'camptix' ), sprintf( '<a href="%s">%s</a>', $this->get_edit_attendee_link( $post->ID, $edit_token ), $edit_token ) );
@@ -3900,7 +3889,6 @@ class CampTix_Plugin {
 
 		$search_meta_fields = array(
 			'tix_first_name',
-			'tix_last_name',
 			'tix_email',
 			'tix_transaction_id',
 			'tix_questions',
@@ -3920,7 +3908,6 @@ class CampTix_Plugin {
 				$data[ $key ] = sprintf( "%s:%s", $key, maybe_serialize( get_post_meta( $post_id, $key, true ) ) );
 
 		$first_name = get_post_meta( $post_id, 'tix_first_name', true );
-		$last_name = get_post_meta( $post_id, 'tix_last_name', true );
 
 		// No infinite loops please.
 		remove_action( 'save_post', array( $this, __FUNCTION__ ) );
@@ -3928,7 +3915,7 @@ class CampTix_Plugin {
 		wp_update_post( array(
 			'ID' => $post_id,
 			'post_content' => maybe_serialize( $data ),
-			'post_title' => "$first_name $last_name",
+			'post_title' => "$first_name",
 		) );
 
 		// There might be others in need of processing.
@@ -4565,14 +4552,9 @@ class CampTix_Plugin {
 									</th>
 								</tr>
 								<tr class="tix-row-first-name">
-									<td class="tix-required tix-left"><?php _e( 'First Name', 'camptix' ); ?> <span class="tix-required-star">*</span></td>
+									<td class="tix-required tix-left"><?php _e( 'Nick', 'camptix_mrmcd' ); ?> <span class="tix-required-star">*</span></td>
 									<?php $value = isset( $this->form_data['tix_attendee_info'][$i]['first_name'] ) ? $this->form_data['tix_attendee_info'][$i]['first_name'] : ''; ?>
 									<td class="tix-right"><input name="tix_attendee_info[<?php echo $i; ?>][first_name]" type="text" value="<?php echo esc_attr( $value ); ?>" /></td>
-								</tr>
-								<tr class="tix-row-last-name">
-									<td class="tix-required tix-left"><?php _e( 'Last Name', 'camptix' ); ?> <span class="tix-required-star">*</span></td>
-									<?php $value = isset( $this->form_data['tix_attendee_info'][$i]['last_name'] ) ? $this->form_data['tix_attendee_info'][$i]['last_name'] : ''; ?>
-									<td class="tix-right"><input name="tix_attendee_info[<?php echo $i; ?>][last_name]" type="text" value="<?php echo esc_attr( $value ); ?>" /></td>
 								</tr>
 								<tr class="tix-row-email">
 									<td class="tix-required tix-left"><?php _e( 'E-mail', 'camptix' ); ?> <span class="tix-required-star">*</span></td>
@@ -4750,14 +4732,13 @@ class CampTix_Plugin {
 						$edit_token = get_post_meta( $attendee->ID, 'tix_edit_token', true );
 						$edit_link = $this->get_edit_attendee_link( $attendee->ID, $edit_token );
 						$first_name = get_post_meta( $attendee->ID, 'tix_first_name', true );
-						$last_name = get_post_meta( $attendee->ID, 'tix_last_name', true );
 
 						if ( $this->is_refundable( $attendee->ID ) )
 							$is_refundable = true;
 					?>
 					<tr>
 						<td>
-							<strong><?php echo esc_html( sprintf( "%s %s", $first_name, $last_name ) ); ?></strong><br />
+							<strong><?php echo esc_html( $first_name ); ?></strong><br />
 							<?php echo $this->get_ticket_title( intval( get_post_meta( $attendee->ID, 'tix_ticket_id', true ) ) ); ?>
 						</td>
 						<td>
@@ -4847,7 +4828,6 @@ class CampTix_Plugin {
 		$answers = (array) get_post_meta( $attendee->ID, 'tix_questions', true );
 		$ticket_info = array(
 			'first_name' => get_post_meta( $attendee->ID, 'tix_first_name', true ),
-			'last_name' => get_post_meta( $attendee->ID, 'tix_last_name', true ),
 			'email' => get_post_meta( $attendee->ID, 'tix_email', true ),
 		);
 
@@ -4859,7 +4839,7 @@ class CampTix_Plugin {
 			$new_ticket_info = array_map( 'trim', $new_ticket_info );
 
 			// todo validate new attendee data here, maybe wrap data validation.
-			if ( empty( $new_ticket_info['first_name'] ) || empty( $new_ticket_info['last_name'] ) )
+			if ( empty( $new_ticket_info['first_name'] ) )
 				$errors[] = __( 'Please fill in all required fields.', 'camptix' );
 
 			if ( ! is_email( $new_ticket_info['email'] ) )
@@ -4890,7 +4870,6 @@ class CampTix_Plugin {
 
 				// Save info
 				update_post_meta( $attendee->ID, 'tix_first_name', sanitize_text_field( $new_ticket_info['first_name'] ) );
-				update_post_meta( $attendee->ID, 'tix_last_name', sanitize_text_field( $new_ticket_info['last_name'] ) );
 				update_post_meta( $attendee->ID, 'tix_email', sanitize_email( $new_ticket_info['email'] ) );
 				update_post_meta( $attendee->ID, 'tix_questions', $new_answers );
 
@@ -4917,12 +4896,8 @@ class CampTix_Plugin {
 							</th>
 						</tr>
 						<tr>
-							<td class="tix-required tix-left"><?php _e( 'First Name', 'camptix' ); ?> <span class="tix-required-star">*</span></td>
+							<td class="tix-required tix-left"><?php _e( 'Nick', 'camptix_mrmcd' ); ?> <span class="tix-required-star">*</span></td>
 							<td class="tix-right"><input name="tix_ticket_info[first_name]" type="text" value="<?php echo esc_attr( $ticket_info['first_name'] ); ?>" /></td>
-						</tr>
-						<tr>
-							<td class="tix-required tix-left"><?php _e( 'Last Name', 'camptix' ); ?> <span class="tix-required-star">*</span></td>
-							<td class="tix-right"><input name="tix_ticket_info[last_name]" type="text" value="<?php echo esc_attr( $ticket_info['last_name'] ); ?>" /></td>
 						</tr>
 						<tr>
 							<td class="tix-required tix-left"><?php _e( 'E-mail', 'camptix' ); ?> <span class="tix-required-star">*</span></td>
@@ -5570,9 +5545,8 @@ class CampTix_Plugin {
 			$attendee_info = array_map( 'trim', $attendee_info );
 
 			$attendee_info['first_name'] = sanitize_text_field( $attendee_info['first_name'] );
-			$attendee_info['last_name'] = sanitize_text_field( $attendee_info['last_name'] );
 
-			if ( empty( $attendee_info['first_name'] ) || empty( $attendee_info['last_name'] ) )
+			if ( empty( $attendee_info['first_name'] ) )
 				$this->error_flags['required_fields'] = true;
 
 			if ( ! is_email( $attendee_info['email'] ) )
@@ -5601,7 +5575,6 @@ class CampTix_Plugin {
 
 			$attendee->ticket_id = $ticket->ID;
 			$attendee->first_name = $attendee_info['first_name'];
-			$attendee->last_name = $attendee_info['last_name'];
 			$attendee->email = $attendee_info['email'];
 			$attendee->answers = $answers;
 
@@ -5641,7 +5614,7 @@ class CampTix_Plugin {
 
 		foreach ( $attendees as $attendee ) {
 			$post_id = wp_insert_post( array(
-				'post_title' => $attendee->first_name . " " . $attendee->last_name,
+				'post_title' => $attendee->first_name,
 				'post_type' => 'tix_attendee',
 				'post_status' => 'draft',
 			) );
@@ -5660,7 +5633,6 @@ class CampTix_Plugin {
 				update_post_meta( $post_id, 'tix_timestamp', time() );
 				update_post_meta( $post_id, 'tix_ticket_id', $attendee->ticket_id );
 				update_post_meta( $post_id, 'tix_first_name', $attendee->first_name );
-				update_post_meta( $post_id, 'tix_last_name', $attendee->last_name );
 				update_post_meta( $post_id, 'tix_email', $attendee->email );
 				update_post_meta( $post_id, 'tix_tickets_selected', $this->tickets_selected );
 				update_post_meta( $post_id, 'tix_receipt_email', $receipt_email );
