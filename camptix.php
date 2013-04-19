@@ -4746,6 +4746,7 @@ class CampTix_Plugin {
 						</td>
 						<td>
 							<a href="<?php echo esc_url( $edit_link ); ?>"><?php _e( 'Edit information', 'camptix' ); ?></a>
+							<?php do_action('camptix_ticket_links', $attendee); ?>
 						</td>
 					</tr>
 
