@@ -6164,12 +6164,44 @@ class CampTix_Plugin {
 		 * @todo E-mail Templates
 		 */
 		if ( $from_status == 'pending' && $to_status == 'publish' ) {
-			$edit_link = $this->get_access_tickets_link( $access_token );
-			$subject = sprintf( __( "Your Payment for %s", 'camptix' ), $this->options['event_name'] );
-			$content = sprintf( __( "Hey there!\n\nYour payment for %s has been completed, looking forward to seeing you at the event! You can access and change your tickets information by visiting the following link:\n\n%s\n\nLet us know if you need any help!", 'camptix' ), $this->options['event_name'], $edit_link );
+			
+			
+			if ( count( $attendees ) == 1 ) {
 
-			$this->log( sprintf( 'Sending completed e-mail notification after IPN to %s.', $receipt_email ), $attendees[0]->ID );
-			$this->wp_mail( $receipt_email, $subject, $content );
+				$edit_link = $this->get_access_tickets_link( $access_token );
+				$subject = sprintf( __( "Your Ticket for %s", 'camptix' ), $this->options['event_name'] );
+				$content = sprintf( __( "Hey there!\n\nYour payment for %s has been completed, looking forward to seeing you at the event! You can access and change your tickets information by visiting the following link:\n\n%s\n\nLet us know if you need any help!", 'camptix' ), $this->options['event_name'], $edit_link );
+
+				$this->log( sprintf( 'Sending completed e-mail notification after IPN to %s.', $receipt_email ), $attendees[0]->ID );
+				$this->wp_mail( $receipt_email, $subject, $content );
+
+				$this->log( sprintf( 'Sent a ticket and receipt to %s.', $receipt_email ), $receipt_attendee->ID );
+				$this->wp_mail( $receipt_email, $subject, $content );
+
+				do_action( 'camptix_ticket_emailed', $receipt_attendee->ID );
+
+			} elseif ( count( $attendees ) > 1 ) {
+
+				foreach ( $attendees as $attendee ) {
+					$attendee_email = get_post_meta( $attendee->ID, 'tix_email', true );
+					$edit_token = get_post_meta( $attendee->ID, 'tix_edit_token', true );
+					$edit_link = $this->get_edit_attendee_link( $attendee->ID, $edit_token );
+
+					$this->tmp( 'attendee_id', $attendee->ID );
+					$this->tmp( 'ticket_url', $edit_link );
+
+					$subject = sprintf( __( "Your Ticket for %s", 'camptix' ), $this->options['event_name'] );
+					$content = sprintf( __( "Hey there!\n\nYour payment for %s has been completed, looking forward to seeing you at the event! You can access and change your tickets information by visiting the following link:\n\n%s\n\nLet us know if you need any help!", 'camptix' ), $this->options['event_name'], $edit_link );
+
+					$this->log( sprintf( 'Sending completed e-mail notification after IPN to %s.', $receipt_email ), $attendees[0]->ID );
+					$this->wp_mail( $receipt_email, $subject, $content );
+
+					$this->log( sprintf( 'Sent a ticket and receipt to %s.', $receipt_email ), $receipt_attendee->ID );
+					$this->wp_mail( $attendee_email, $subject, $content );
+
+					do_action( 'camptix_ticket_emailed', $attendee->ID );
+				}
+			}
 		}
 
 		if ( $from_status == 'pending' && $to_status == 'failed' ) {
